@@ -1,0 +1,63 @@
+/* Basado en los estilos originales del React App.css */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+}
+
+.sensor-monitor-row {
+    height: 96vh;
+    overflow: hidden;
+}
+
+.sensor-monitor-col {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+}
+
+.sensor-canvas {
+    border: 1px solid white;
+    touch-action: none;
+    flex: 1 0 auto;
+    height: 0;
+    background-color: #282c34;
+}
+
+.sensor-controls,
+.sensor-label {
+    flex: 0 0 auto;
+    color: white;
+    text-align: center;
+    margin: 5px 0;
+}
+
+.sensor-label {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.plot-container {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    height: 86vh;
+    position: relative;
+}
+
+.plot-canvas {
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+/* Responsive */
+@media (max-width: 400px) {
+    .sensor-monitor-col {
+        padding-left: 1px;
+        padding-right: 1px;
+    }
+}

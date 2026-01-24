@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>FSR Plot - Visualización en Tiempo Real</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link th:href="@{/css/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/fsr.css}" rel="stylesheet">
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container-fluid plot-container">
+    <div class="row">
+        <div class="col-12 d-flex align-items-center" style="height: 9vh; padding: 2vh 0;">
+            <span class="mr-3">Mostrar: </span>
+            <div id="plot-toggle-buttons">
+                <!-- Botones generados dinámicamente por JavaScript -->
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12" style="height: 86vh;">
+            <canvas id="plot-canvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/alerts :: alerts}"></div>
+
+<script th:src="@{/js/websocket.js}"></script>
+<script th:src="@{/js/plot-canvas.js}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar conexión WebSocket
+        fsrWebSocket.connect();
+
+        // Crear botones de toggle para sensores
+        const toggleContainer = document.getElementById('plot-toggle-buttons');
+        const buttonNames = ['Left', 'Down', 'Up', 'Right'];
+
+        for (let i = 0; i < 4; i++) {
+            const button = document.createElement('button');
+            button.className = 'btn btn-sm btn-light mr-2 toggle-sensor active';
+            button.textContent = buttonNames[i];
+            button.dataset.index = i;
+            toggleContainer.appendChild(button);
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<div th:fragment="profile-manager" class="profile-manager">
+    <!-- Dropdown de perfiles -->
+    <div class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown">
+            Perfiles
+        </a>
+        <div class="dropdown-menu" id="profile-dropdown">
+            <!-- Perfiles generados dinámicamente por JavaScript -->
+        </div>
+    </div>
+
+    <!-- Formulario para añadir perfil -->
+    <form class="form-inline" id="add-profile-form">
+        <input class="form-control" type="text" id="new-profile-name" placeholder="Nuevo Perfil" />
+        <button class="btn btn-primary ml-2" type="submit">Añadir</button>
+    </form>
+
+    <!-- Alerta de perfil guardado -->
+    <div class="alert alert-success alert-dismissible fade show" id="profile-saved-alert" style="display: none;">
+        Perfil guardado exitosamente!
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    </div>
+</div>
+
+<script>
+    // Funcionalidad del gestor de perfiles
+    document.addEventListener('DOMContentLoaded', function() {
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const addProfileForm = document.getElementById('add-profile-form');
+        const newProfileInput = document.getElementById('new-profile-name');
+        const profileSavedAlert = document.getElementById('profile-saved-alert');
+
+        // Actualizar lista de perfiles
+        function updateProfileList(profiles, activeProfile) {
+            profileDropdown.innerHTML = '';
+
+            profiles.forEach(function(profile) {
+                const isActive = profile === activeProfile;
+                const item = document.createElement('a');
+                item.className = 'dropdown-item' + (isActive ? ' active' : '');
+                item.href = '#';
+                item.innerHTML = `
+                    <button class="btn btn-sm btn-light mr-2" onclick="removeProfile('${profile}')">X</button>
+                    ${profile}
+                `;
+                item.onclick = function(e) {
+                    e.preventDefault();
+                    if (!e.target.closest('button')) {
+                        changeProfile(profile);
+                    }
+                };
+                profileDropdown.appendChild(item);
+            });
+        }
+
+        // Añadir nuevo perfil
+        addProfileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const profileName = newProfileInput.value.trim();
+            if (profileName) {
+                fsrWebSocket.emit(['add_profile', profileName, getCurrentThresholds()]);
+                newProfileInput.value = '';
+            }
+        });
+
+        // Eliminar perfil
+        window.removeProfile = function(profileName) {
+            if (confirm('¿Eliminar perfil "' + profileName + '"?')) {
+                fsrWebSocket.emit(['remove_profile', profileName]);
+            }
+        };
+
+        // Cambiar perfil
+        window.changeProfile = function(profileName) {
+            fsrWebSocket.emit(['change_profile', profileName]);
+        };
+
+        // Obtener umbrales actuales
+        function getCurrentThresholds() {
+            const thresholds = [];
+            document.querySelectorAll('.threshold-label').forEach(function(label) {
+                thresholds.push(parseInt(label.textContent));
+            });
+            return thresholds;
+        }
+
+        // Escuchar eventos WebSocket
+        fsrWebSocket.on('get_profiles', function(msg) {
+            updateProfileList(msg.profiles, msg.cur_profile || '');
+        });
+
+        fsrWebSocket.on('get_cur_profile', function(msg) {
+            // Actualizar perfil activo en la UI
+            document.querySelectorAll('#profile-dropdown .dropdown-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+        });
+
+        fsrWebSocket.on('thresholds_persisted', function(msg) {
+            profileSavedAlert.style.display = 'block';
+            setTimeout(function() {
+                profileSavedAlert.style.display = 'none';
+            }, 3000);
+        });
+    });
+</script>
+
+</html>

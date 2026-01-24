@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>FSR WebUI - Configuración de Sensores</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link th:href="@{/css/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/css/fsr.css}" rel="stylesheet">
+    <link th:href="@{/css/sensor-monitor.css}" rel="stylesheet">
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container-fluid sensor-monitor-row">
+    <div class="row" id="sensor-monitors">
+        <!-- Monitores de sensores generados dinámicamente por JavaScript -->
+    </div>
+</div>
+
+<div th:replace="~{fragments/profile-manager :: profile-manager}"></div>
+<div th:replace="~{fragments/alerts :: alerts}"></div>
+
+<script th:src="@{/js/websocket.js}"></script>
+<script th:src="@{/js/sensor-canvas.js}"></script>
+<script th:src="@{/js/profile-controls.js}"></script>
+
+<script>
+    let sensorMonitors = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar conexión WebSocket
+        fsrWebSocket.connect();
+
+        // Crear monitores para cada sensor
+        const monitorsContainer = document.getElementById('sensor-monitors');
+        const buttonNames = ['Left', 'Down', 'Up', 'Right'];
+
+        for (let i = 0; i < 4; i++) {
+            const col = document.createElement('div');
+            col.className = 'col sensor-monitor-col';
+            col.innerHTML = `
+                <div class="sensor-controls">
+                    <button class="btn btn-sm btn-light decrement-btn">-</button>
+                    <span>${buttonNames[i]}</span>
+                    <button class="btn btn-sm btn-light increment-btn">+</button>
+                </div>
+                <div class="sensor-label threshold-label">0</div>
+                <div class="sensor-label value-label">0</div>
+                <canvas class="sensor-canvas"></canvas>
+            `;
+            monitorsContainer.appendChild(col);
+
+            // Inicializar monitor de sensor
+            const monitor = new SensorMonitor(i, fsrWebSocket);
+            monitor.initialize(monitorsContainer);
+            sensorMonitors.push(monitor);
+        }
+    });
+</script>
+</body>
+</html>
