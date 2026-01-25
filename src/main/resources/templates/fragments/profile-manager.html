@@ -62,14 +62,18 @@
         addProfileForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const profileName = newProfileInput.value.trim();
+            console.log('[profile-manager] submit fired, profileName=', profileName); // LOG agregado
             if (profileName) {
-                fsrWebSocket.emit(['add_profile', profileName, getCurrentThresholds()]);
+                const thresholds = getCurrentThresholds();
+                console.log('[profile-manager] emitting add_profile, thresholds=', thresholds); // LOG agregado
+                fsrWebSocket.emit(['add_profile', profileName, thresholds]);
                 newProfileInput.value = '';
             }
         });
 
         // Eliminar perfil
         window.removeProfile = function(profileName) {
+            console.log('[profile-manager] removeProfile called:', profileName); // LOG agregado
             if (confirm('¿Eliminar perfil "' + profileName + '"?')) {
                 fsrWebSocket.emit(['remove_profile', profileName]);
             }
@@ -77,6 +81,7 @@
 
         // Cambiar perfil
         window.changeProfile = function(profileName) {
+            console.log('[profile-manager] changeProfile called:', profileName); // LOG agregado
             fsrWebSocket.emit(['change_profile', profileName]);
         };
 
@@ -86,6 +91,7 @@
             document.querySelectorAll('.threshold-label').forEach(function(label) {
                 thresholds.push(parseInt(label.textContent));
             });
+            console.log('[profile-manager] getCurrentThresholds ->', thresholds); // LOG agregado
             return thresholds;
         }
 
@@ -109,5 +115,6 @@
         });
     });
 </script>
+
 
 </html>

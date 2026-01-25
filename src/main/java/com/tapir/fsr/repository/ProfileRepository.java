@@ -1,6 +1,8 @@
 package com.tapir.fsr.repository;
 
 import com.tapir.fsr.model.Profile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 
 import java.io.*;
@@ -13,8 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Repository
 public class ProfileRepository {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProfileRepository.class);
+
     private final Map<String, Profile> profiles = new ConcurrentHashMap<>();
-    private String currentProfile = "";
+    private String currentProfile = "user1";
     private final Path profilesPath;
 
     public ProfileRepository() {
@@ -60,7 +64,7 @@ public class ProfileRepository {
 
     private void loadProfiles() {
         // Perfil por defecto
-        profiles.put("", new Profile("", Arrays.asList(0, 0, 0, 0), false));
+        profiles.put("user1", new Profile("user1", Arrays.asList(10, 5, 8, 4), true));
 
         if (!Files.exists(profilesPath)) {
             try {
@@ -88,6 +92,8 @@ public class ProfileRepository {
                         currentProfile = name;
                         firstProfile = false;
                     }
+                } else {
+                    LOGGER.error("Formato inválido en profiles.txt: {}", line);
                 }
             }
         } catch (IOException e) {
