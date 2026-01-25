@@ -49,7 +49,7 @@ public class SensorService {
                     rawValues[i],             // rawValue
                     rawValues[i],             // smoothedValue (sin suavizado en backend)
                     thresholds[i],            // threshold
-                    isActive                  // isActive
+                    isActive                  // active
             ));
         }
 
