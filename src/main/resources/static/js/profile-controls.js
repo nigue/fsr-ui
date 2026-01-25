@@ -1,18 +1,47 @@
+// javascript
 class ProfileControls {
     constructor(websocket) {
-        this.websocket = websocket;
+        console.log('ProfileControls constructor');
+        this.websocket = null;
         this.profiles = [];
         this.currentProfile = '';
         this.buttonNames = ['Left', 'Down', 'Up', 'Right'];
+        this.messageQueue = [];
+
+        if (websocket) {
+            this.setWebSocket(websocket);
+        }
+    }
+
+    setWebSocket(ws) {
+        this.websocket = ws;
+        // si el websocket ya expone 'on', configurar listeners
+        if (this.websocket && typeof this.websocket.on === 'function') {
+            this.setupWebSocketListeners();
+        }
+        // enviar mensajes encolados
+        while (this.messageQueue.length > 0) {
+            const payload = this.messageQueue.shift();
+            this.safeEmit(payload);
+        }
     }
 
     initialize() {
         this.setupEventListeners();
-        this.setupWebSocketListeners();
+        // si el websocket ya está disponible al inicializar
+        if (this.websocket && typeof this.websocket.on === 'function') {
+            this.setupWebSocketListeners();
+        } else {
+            // esperar evento externo que indique que el socket está listo
+            document.addEventListener('fsrSocketReady', () => {
+                if (window.fsrWebSocket) {
+                    this.setWebSocket(window.fsrWebSocket);
+                }
+            }, { once: true });
+        }
     }
 
     setupEventListeners() {
-        // Formulario para añadir perfil
         const addProfileForm = document.getElementById('add-profile-form');
         if (addProfileForm) {
             addProfileForm.addEventListener('submit', (e) => {
@@ -21,7 +50,6 @@ class ProfileControls {
             });
         }
 
-        // Botón de guardar umbrales
         const saveButton = document.getElementById('save-thresholds');
         if (saveButton) {
             saveButton.addEventListener('click', () => {
@@ -31,6 +59,9 @@ class ProfileControls {
     }
 
     setupWebSocketListeners() {
+        // proteger si se llama dos veces
+        if (!this.websocket || typeof this.websocket.on !== 'function') return;
+
         this.websocket.on('get_profiles', (msg) => {
             this.updateProfileList(msg);
         });
@@ -42,6 +73,19 @@ class ProfileControls {
         this.websocket.on('thresholds_persisted', () => {
             this.showSuccessAlert('Umbrales guardados exitosamente');
         });
+    }
+
+    safeEmit(payload) {
+        if (this.websocket && typeof this.websocket.emit === 'function') {
+            try {
+                this.websocket.emit(payload);
+            } catch (e) {
+                console.error('[profile-controls] emit error:', e, payload);
+            }
+        } else {
+            console.warn('[profile-controls] websocket no listo, encolando payload:', payload);
+            this.messageQueue.push(payload);
+        }
     }
 
     updateProfileList(data) {
@@ -74,8 +118,6 @@ class ProfileControls {
 
     updateCurrentProfile(data) {
         this.currentProfile = data.cur_profile || '';
-
-        // Actualizar estado activo en el dropdown
         document.querySelectorAll('#profile-dropdown .dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
@@ -87,23 +129,23 @@ class ProfileControls {
 
         if (profileName) {
             const thresholds = this.getCurrentThresholds();
-            this.websocket.emit(['add_profile', profileName, thresholds]);
+            this.safeEmit(['add_profile', profileName, thresholds]);
             input.value = '';
         }
     }
 
     removeProfile(profileName) {
         if (confirm(`¿Eliminar perfil "${profileName}"?`)) {
-            this.websocket.emit(['remove_profile', profileName]);
+            this.safeEmit(['remove_profile', profileName]);
         }
     }
 
     changeProfile(profileName) {
-        this.websocket.emit(['change_profile', profileName]);
+        this.safeEmit(['change_profile', profileName]);
     }
 
     saveThresholds() {
-        this.websocket.emit(['save_thresholds']);
+        this.safeEmit(['save_thresholds']);
     }
 
     getCurrentThresholds() {
@@ -115,7 +157,6 @@ class ProfileControls {
     }
 
     showSuccessAlert(message) {
-        // Crear o mostrar alerta de éxito
         let alert = document.getElementById('profile-success-alert');
         if (!alert) {
             alert = document.createElement('div');
@@ -137,7 +178,6 @@ class ProfileControls {
             alert.style.display = 'block';
         }
 
-        // Auto-ocultar después de 3 segundos
         setTimeout(() => {
             alert.style.display = 'none';
         }, 3000);
@@ -151,4 +191,7 @@ let profileControls;
 document.addEventListener('DOMContentLoaded', function() {
     profileControls = new ProfileControls(window.fsrWebSocket);
     profileControls.initialize();
+
+    // Si el script que crea el socket lo hace después, que dispare:
+    // document.dispatchEvent(new Event('fsrSocketReady'))
 });

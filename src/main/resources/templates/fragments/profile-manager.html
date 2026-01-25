@@ -28,26 +28,33 @@
 </div>
 
 <script>
-    // Funcionalidad del gestor de perfiles
     document.addEventListener('DOMContentLoaded', function() {
         const profileDropdown = document.getElementById('profile-dropdown');
         const addProfileForm = document.getElementById('add-profile-form');
         const newProfileInput = document.getElementById('new-profile-name');
         const profileSavedAlert = document.getElementById('profile-saved-alert');
 
-        // Actualizar lista de perfiles
+        function safeEmit(payload) {
+            if (window.fsrWebSocket && typeof window.fsrWebSocket.emit === 'function') {
+                try {
+                    // proteger contra this.websocket undefined dentro de emit
+                    window.fsrWebSocket.emit(payload);
+                } catch (e) {
+                    console.error('[profile-manager] emit fallo:', e, payload);
+                }
+            } else {
+                console.warn('[profile-manager] fsrWebSocket no listo, payload descartado:', payload);
+            }
+        }
+
         function updateProfileList(profiles, activeProfile) {
             profileDropdown.innerHTML = '';
-
             profiles.forEach(function(profile) {
                 const isActive = profile === activeProfile;
                 const item = document.createElement('a');
                 item.className = 'dropdown-item' + (isActive ? ' active' : '');
                 item.href = '#';
-                item.innerHTML = `
-                    <button class="btn btn-sm btn-light mr-2" onclick="removeProfile('${profile}')">X</button>
-                    ${profile}
-                `;
+                item.innerHTML = `<button class="btn btn-sm btn-light mr-2" onclick="removeProfile('${profile}')">X</button>${profile}`;
                 item.onclick = function(e) {
                     e.preventDefault();
                     if (!e.target.closest('button')) {
@@ -58,63 +65,60 @@
             });
         }
 
-        // Añadir nuevo perfil
         addProfileForm.addEventListener('submit', function(e) {
+            console.log('addProfileForm addEventListener submit');
             e.preventDefault();
             const profileName = newProfileInput.value.trim();
-            console.log('[profile-manager] submit fired, profileName=', profileName); // LOG agregado
+            console.log('[profile-manager] submit fired, profileName=', profileName);
             if (profileName) {
                 const thresholds = getCurrentThresholds();
-                console.log('[profile-manager] emitting add_profile, thresholds=', thresholds); // LOG agregado
-                fsrWebSocket.emit(['add_profile', profileName, thresholds]);
+                console.log('[profile-manager] emitting add_profile, thresholds=', thresholds);
+                safeEmit(['add_profile', profileName, thresholds]);
                 newProfileInput.value = '';
             }
         });
 
-        // Eliminar perfil
         window.removeProfile = function(profileName) {
-            console.log('[profile-manager] removeProfile called:', profileName); // LOG agregado
+            console.log('[profile-manager] removeProfile called:', profileName);
             if (confirm('¿Eliminar perfil "' + profileName + '"?')) {
-                fsrWebSocket.emit(['remove_profile', profileName]);
+                safeEmit(['remove_profile', profileName]);
             }
         };
 
-        // Cambiar perfil
         window.changeProfile = function(profileName) {
-            console.log('[profile-manager] changeProfile called:', profileName); // LOG agregado
-            fsrWebSocket.emit(['change_profile', profileName]);
+            console.log('[profile-manager] changeProfile called:', profileName);
+            safeEmit(['change_profile', profileName]);
         };
 
-        // Obtener umbrales actuales
         function getCurrentThresholds() {
             const thresholds = [];
             document.querySelectorAll('.threshold-label').forEach(function(label) {
                 thresholds.push(parseInt(label.textContent));
             });
-            console.log('[profile-manager] getCurrentThresholds ->', thresholds); // LOG agregado
+            console.log('[profile-manager] getCurrentThresholds ->', thresholds);
             return thresholds;
         }
 
-        // Escuchar eventos WebSocket
-        fsrWebSocket.on('get_profiles', function(msg) {
-            updateProfileList(msg.profiles, msg.cur_profile || '');
-        });
-
-        fsrWebSocket.on('get_cur_profile', function(msg) {
-            // Actualizar perfil activo en la UI
-            document.querySelectorAll('#profile-dropdown .dropdown-item').forEach(function(item) {
-                item.classList.remove('active');
+        // Escuchar eventos WebSocket si el objeto ya está disponible
+        if (window.fsrWebSocket && typeof window.fsrWebSocket.on === 'function') {
+            window.fsrWebSocket.on('get_profiles', function(msg) {
+                updateProfileList(msg.profiles, msg.cur_profile || '');
             });
-        });
-
-        fsrWebSocket.on('thresholds_persisted', function(msg) {
-            profileSavedAlert.style.display = 'block';
-            setTimeout(function() {
-                profileSavedAlert.style.display = 'none';
-            }, 3000);
-        });
+            window.fsrWebSocket.on('get_cur_profile', function(msg) {
+                document.querySelectorAll('#profile-dropdown .dropdown-item').forEach(function(item) {
+                    item.classList.remove('active');
+                });
+            });
+            window.fsrWebSocket.on('thresholds_persisted', function(msg) {
+                profileSavedAlert.style.display = 'block';
+                setTimeout(function() { profileSavedAlert.style.display = 'none'; }, 3000);
+            });
+        } else {
+            console.warn('[profile-manager] fsrWebSocket no definido aún. Asegúrate de incluir el script del WebSocket antes de este fragmento o exponer un evento cuando esté listo.');
+        }
     });
 </script>
+
 
 
 </html>

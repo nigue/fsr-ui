@@ -2,10 +2,14 @@ package com.tapir.fsr.handler;
 
 import com.tapir.fsr.event.SensorDataEvent;
 import com.tapir.fsr.service.ProfileService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.*;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.ObjectMapper;
 
@@ -13,6 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class FsrWebSocketHandler extends TextWebSocketHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FsrWebSocketHandler.class);
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ConcurrentHashMap<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
@@ -89,12 +95,15 @@ public class FsrWebSocketHandler extends TextWebSocketHandler {
                     try {
                         session.sendMessage(new TextMessage(jsonMessage));
                     } catch (Exception e) {
+                        LOGGER.warn("Session {} is not open", session.getId());
                         sessions.remove(session.getId());
                     }
                 }
             });
         } catch (Exception e) {
+            LOGGER.error("Can not find a session");
             // Manejar error de serialización
+            throw new RuntimeException("Can not find a session");
         }
     }
 
