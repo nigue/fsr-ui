@@ -1,60 +1,66 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>FSR WebUI - Configuración de Sensores</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link th:href="@{/css/bootstrap.min.css}" rel="stylesheet">
-    <link th:href="@{/css/fsr.css}" rel="stylesheet">
-    <link th:href="@{/css/sensor-monitor.css}" rel="stylesheet">
+    <meta charset="UTF-8" />
+    <title>FSR WebUI - Minimal</title>
 </head>
 <body>
-<div th:replace="~{fragments/navbar :: navbar}"></div>
+<h1>FSR WebUI - Minimal</h1>
 
-<div class="container-fluid sensor-monitor-row">
-    <div class="row" id="sensor-monitors">
-        <!-- Monitores de sensores generados dinámicamente por JavaScript -->
+<!-- Perfiles: listado generado por Thymeleaf -->
+<div>
+    <h2>Perfiles</h2>
+    <div th:each="p : ${profiles}">
+        <form th:action="@{/profile/select}" method="post" style="display: inline;">
+            <input type="hidden" name="profileName" th:value="${p.name}" />
+            <label th:text="${p.name}">Perfil</label>
+            <button type="submit">Seleccionar</button>
+        </form>
+        <span th:if="${p.name == selectedProfile}"> (activo)</span>
+        <br/>
     </div>
 </div>
 
-<div th:replace="~{fragments/profile-manager :: profile-manager}"></div>
-<div th:replace="~{fragments/alerts :: alerts}"></div>
+<!-- Sensores: solo labels con números y forms básicos para umbral -->
+<div>
+    <h2>Sensores</h2>
+    <div th:each="i : ${#numbers.sequence(0,3)}">
+        <div>
+            <label>Sensor <span th:text="${i}">0</span>:</label>
+            <label>Valor: <span id="value-[[${i}]]" th:text="${sensorValues[i]}">0</span></label>
+            <label>Umbral: <span id="threshold-[[${i}]]" th:text="${thresholds[i]}">0</span></label>
 
-<script th:src="@{/js/websocket.js}"></script>
-<script th:src="@{/js/sensor-canvas.js}"></script>
-<script th:src="@{/js/profile-controls.js}"></script>
+            <form th:action="@{/sensor/{id}/threshold(id=${i})}" method="post" style="display:inline;">
+                <input type="number" name="threshold" min="0" max="1023" />
+                <button type="submit">Set</button>
+            </form>
+        </div>
+        <br/>
+    </div>
+</div>
 
+<!-- Minimal JS embebido para STOMP over SockJS (CDN cargado inline) -->
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 <script>
-    let sensorMonitors = [];
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar conexión WebSocket
-        fsrWebSocket.connect();
-
-        // Crear monitores para cada sensor
-        const monitorsContainer = document.getElementById('sensor-monitors');
-        const buttonNames = ['Left', 'Down', 'Up', 'Right'];
-
-        for (let i = 0; i < 4; i++) {
-            const col = document.createElement('div');
-            col.className = 'col sensor-monitor-col';
-            col.innerHTML = `
-                <div class="sensor-controls">
-                    <button class="btn btn-sm btn-light decrement-btn">-</button>
-                    <span>${buttonNames[i]}</span>
-                    <button class="btn btn-sm btn-light increment-btn">+</button>
-                </div>
-                <div class="sensor-label threshold-label">0</div>
-                <div class="sensor-label value-label">0</div>
-                <canvas class="sensor-canvas"></canvas>
-            `;
-            monitorsContainer.appendChild(col);
-
-            // Inicializar monitor de sensor
-            const monitor = new SensorMonitor(i, fsrWebSocket);
-            monitor.initialize(monitorsContainer);
-            sensorMonitors.push(monitor);
-        }
+    document.addEventListener('DOMContentLoaded', function () {
+        // Conexión mínima STOMP sobre SockJS
+        var socket = new SockJS('/ws');
+        var stompClient = Stomp.over(socket);
+        stompClient.connect({}, function () {
+            stompClient.subscribe('/topic/sensor', function (msg) {
+                try {
+                    var data = JSON.parse(msg.body);
+                    var id = data.id;
+                    if (document.getElementById('value-' + id)) {
+                        document.getElementById('value-' + id).innerText = data.value;
+                    }
+                    if (document.getElementById('threshold-' + id)) {
+                        document.getElementById('threshold-' + id).innerText = data.threshold;
+                    }
+                } catch (e) { console.error(e); }
+            });
+        }, function (err) { console.error('STOMP error', err); });
     });
 </script>
 </body>

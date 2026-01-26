@@ -1,82 +1,77 @@
 package com.tapir.fsr.controller;
 
-import com.tapir.fsr.model.Profile;
+import com.tapir.fsr.model.SensorUpdate;
 import com.tapir.fsr.service.ProfileService;
-import com.tapir.fsr.service.SensorService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 
-@RestController
-@RequestMapping("/api")
+@Controller
 public class FsrController {
 
-    @Autowired
-    private ProfileService profileService;
+    private final ProfileService profileService;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    // estado simple en memoria
+    private final AtomicIntegerArray sensorValues = new AtomicIntegerArray(4);
+    private final AtomicIntegerArray thresholds = new AtomicIntegerArray(new int[]{100,100,100,100});
 
     @Autowired
-    private SensorService sensorService;
-
-    @GetMapping("/defaults")
-    public ResponseEntity<Map<String, Object>> getDefaults() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("profiles", profileService.getAllProfiles().stream()
-                .map(Profile::name).toList());
-        response.put("cur_profile", profileService.getCurrentProfile().name());
-        response.put("thresholds", profileService.getCurrentProfile().thresholds());
-        return ResponseEntity.ok(response);
+    public FsrController(ProfileService profileService, SimpMessagingTemplate messagingTemplate) {
+        this.profileService = profileService;
+        this.messagingTemplate = messagingTemplate;
+        // valores iniciales (ejemplo)
+        sensorValues.set(0, 0);
+        sensorValues.set(1, 0);
+        sensorValues.set(2, 0);
+        sensorValues.set(3, 0);
     }
 
-    @GetMapping("/profiles")
-    public ResponseEntity<List<Profile>> getAllProfiles() {
-        return ResponseEntity.ok(profileService.getAllProfiles());
+    @GetMapping("/")
+    public String index(Model model) {
+        model.addAttribute("profiles", profileService.getAll());
+        model.addAttribute("selectedProfile", profileService.getSelectedProfile());
+        List<Integer> values = Arrays.asList(
+                sensorValues.get(0), sensorValues.get(1),
+                sensorValues.get(2), sensorValues.get(3));
+        List<Integer> ths = Arrays.asList(
+                thresholds.get(0), thresholds.get(1),
+                thresholds.get(2), thresholds.get(3));
+        model.addAttribute("sensorValues", values);
+        model.addAttribute("thresholds", ths);
+        return "index";
     }
 
-    @PostMapping("/profiles")
-    public ResponseEntity<Profile> createProfile(@RequestBody Map<String, Object> request) {
-        String name = (String) request.get("name");
-        @SuppressWarnings("unchecked")
-        List<Integer> thresholds = (List<Integer>) request.get("thresholds");
-
-        Profile created = profileService.addProfile(name, thresholds);
-        return ResponseEntity.ok(created);
+    @PostMapping("/profile/select")
+    public String selectProfile(@RequestParam String profileName) {
+        profileService.setSelectedProfile(profileName);
+        return "redirect:/";
     }
 
-    @PutMapping("/profiles/{name}")
-    public ResponseEntity<Profile> updateProfile(
-            @PathVariable String name,
-            @RequestBody Map<String, Object> request) {
-
-        @SuppressWarnings("unchecked")
-        List<Integer> thresholds = (List<Integer>) request.get("thresholds");
-        profileService.updateThresholds(name, thresholds);
-
-        return ResponseEntity.ok(profileService.findByName(name).orElse(null));
+    @PostMapping("/sensor/{id}/threshold")
+    public String setThreshold(@PathVariable int id, @RequestParam int threshold) {
+        if (id >=0 && id < thresholds.length()) {
+            thresholds.set(id, threshold);
+            // notificar a clientes vía websocket
+            SensorUpdate u = new SensorUpdate(id, sensorValues.get(id), threshold);
+            messagingTemplate.convertAndSend("/topic/sensor", u);
+        }
+        return "redirect:/";
     }
 
-    @DeleteMapping("/profiles/{name}")
-    public ResponseEntity<Void> deleteProfile(@PathVariable String name) {
-        profileService.removeProfile(name);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/sensors")
-    public ResponseEntity<Map<String, Object>> getSensorData() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("values", sensorService.getCurrentValues());
-        response.put("thresholds", sensorService.getCurrentThresholds());
-        response.put("states", sensorService.getSensorStates());
-        response.put("activeCount", sensorService.getActiveSensorCount());
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/profiles/{name}/activate")
-    public ResponseEntity<Void> activateProfile(@PathVariable String name) {
-        profileService.changeProfile(name);
-        return ResponseEntity.ok().build();
+    // Método auxiliar que otros servicios (por ejemplo ArduinoService) deben llamar
+    public void publishSensor(int id, int value) {
+        if (id >=0 && id < sensorValues.length()) {
+            sensorValues.set(id, value);
+            int th = thresholds.get(id);
+            SensorUpdate u = new SensorUpdate(id, value, th);
+            messagingTemplate.convertAndSend("/topic/sensor", u);
+        }
     }
 }

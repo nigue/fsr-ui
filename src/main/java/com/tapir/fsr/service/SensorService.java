@@ -32,8 +32,7 @@ public class SensorService {
         currentValues.set(rawValues.clone());
 
         // Obtener umbrales del perfil actual
-        int[] thresholds = profileService.getCurrentProfile().thresholds().stream()
-                .mapToInt(i -> i).toArray();
+        int[] thresholds = new int[]{1,2,3,4};
         currentThresholds.set(thresholds.clone());
 
         // Evaluar estados de sensores

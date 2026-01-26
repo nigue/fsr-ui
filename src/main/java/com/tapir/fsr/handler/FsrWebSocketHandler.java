@@ -13,6 +13,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -30,10 +31,9 @@ public class FsrWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) {
         sessions.put(session.getId(), session);
 
-        broadcast(new Object[]{"thresholds", profileService.getCurrentProfile().thresholds()});
-        broadcast(new Object[]{"get_profiles", profileService.getAllProfiles().stream()
-                .map(p -> p.name()).toList()});
-        broadcast(new Object[]{"get_cur_profile", profileService.getCurrentProfile().name()});
+        broadcast(new Object[]{"thresholds", new int[]{1,2,3,4}});
+        broadcast(new Object[]{"get_profiles", List.of("a1")});
+        broadcast(new Object[]{"get_cur_profile", "a1"});
     }
 
     @Override
@@ -54,20 +54,19 @@ public class FsrWebSocketHandler extends TextWebSocketHandler {
                 case "add_profile":
                     String profileName = (String) data[1];
                     int[] thresholds = (int[]) data[2];
-                    profileService.addProfile(profileName,
-                            java.util.Arrays.stream(thresholds).boxed().toList());
-                    broadcast(new Object[]{"get_profiles", profileService.getAllProfiles().stream()
-                            .map(p -> p.name()).toList()});
+                    profileService.add(profileName);
+                    broadcast(new Object[]{"get_profiles", profileService.getAll().stream()
+                            .map(p -> p.getName()).toList()});
                     break;
                 case "remove_profile":
                     String removeProfileName = (String) data[1];
-                    profileService.removeProfile(removeProfileName);
-                    broadcast(new Object[]{"get_profiles", profileService.getAllProfiles().stream()
-                            .map(p -> p.name()).toList()});
+                    profileService.delete(removeProfileName);
+                    broadcast(new Object[]{"get_profiles", profileService.getAll().stream()
+                            .map(p -> p.getName()).toList()});
                     break;
                 case "change_profile":
                     String changeProfileName = (String) data[1];
-                    profileService.changeProfile(changeProfileName);
+                    //profileService.changeProfile(changeProfileName);
                     broadcast(new Object[]{"get_cur_profile", changeProfileName});
                     break;
             }

@@ -1,53 +1,41 @@
 package com.tapir.fsr.service;
 
-import com.tapir.fsr.model.Profile;
-import com.tapir.fsr.repository.ProfileRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ProfileService {
+    private final List<Profile> profiles = new ArrayList<>();
+    private String selectedProfile;
 
-    @Autowired
-    private ProfileRepository profileRepository;
+    public ProfileService() {
+        // Crear perfiles en el constructor (ejemplo simple)
+        profiles.add(new Profile("Default"));
+        profiles.add(new Profile("Sensitivo"));
+        profiles.add(new Profile("Robusto"));
 
-    public Optional<Profile> findByName(String name) {
-        return profileRepository.findByName(name);
+        selectedProfile = profiles.get(0).getName();
     }
 
-    public List<Profile> getAllProfiles() {
-        return profileRepository.findAll();
+    public List<Profile> getAll() { return profiles; }
+
+    public void add(String name) {
+        profiles.add(new Profile(name));
     }
 
-    public Profile getCurrentProfile() {
-        return profileRepository.getCurrentProfile();
+    public String getSelectedProfile() { return selectedProfile; }
+
+    public void setSelectedProfile(String name) { this.selectedProfile = name; }
+
+    public void delete(String name) {
+
     }
 
-    public void changeProfile(String profileName) {
-        profileRepository.setCurrentProfile(profileName);
-    }
-
-    public Profile addProfile(String name, List<Integer> thresholds) {
-        Profile profile = new Profile(name, thresholds, false);
-        Profile saved = profileRepository.save(profile);
-        profileRepository.setCurrentProfile(name);
-        return saved;
-    }
-
-    public void removeProfile(String name) {
-        profileRepository.deleteByName(name);
-        // Si eliminamos el perfil actual, cambiar al perfil por defecto
-        if (name.equals(profileRepository.getCurrentProfile().name())) {
-            profileRepository.setCurrentProfile("");
-        }
-    }
-
-    public void updateThresholds(String profileName, List<Integer> thresholds) {
-        Profile updatedProfile = new Profile(profileName, thresholds,
-                profileName.equals(profileRepository.getCurrentProfile().name()));
-        profileRepository.save(updatedProfile);
+    public static class Profile {
+        private final String name;
+        public Profile(String name) { this.name = name; }
+        public String getName() { return name; }
     }
 }
