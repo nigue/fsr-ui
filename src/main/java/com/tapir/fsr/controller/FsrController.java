@@ -2,6 +2,8 @@ package com.tapir.fsr.controller;
 
 import com.tapir.fsr.model.SensorUpdate;
 import com.tapir.fsr.service.ProfileService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
@@ -14,6 +16,8 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 
 @Controller
 public class FsrController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FsrController.class);
 
     private final ProfileService profileService;
     private final SimpMessagingTemplate messagingTemplate;
