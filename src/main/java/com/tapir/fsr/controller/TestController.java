@@ -35,18 +35,37 @@ public class TestController {
     }
 
     private String findName(SerialPort port) {
-        port.writeBytes("t\n".getBytes(), 4);
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        port.setComPortParameters(115200, 8,
+                SerialPort.ONE_STOP_BIT,
+                SerialPort.NO_PARITY);
+
+        port.setComPortTimeouts(
+                SerialPort.TIMEOUT_READ_BLOCKING,
+                1000,
+                0
+        );
+
+        if (!port.openPort()) {
+            LOGGER.warn("No se pudo abrir el puerto {}", port.getSystemPortName());
+            return "NO_OPEN";
         }
 
-        byte[] buffer = new byte[64];
-        int n = port.readBytes(buffer, buffer.length);
-        String id = new String(buffer, 0, n).trim();
+        try {
+            byte[] cmd = "t".getBytes();
+            port.writeBytes(cmd, cmd.length);
 
-        return id;
+            byte[] buffer = new byte[64];
+            int n = port.readBytes(buffer, buffer.length);
+
+            if (n <= 0) {
+                return "NO_RESPONSE";
+            }
+
+            return new String(buffer, 0, n).trim();
+
+        } finally {
+            port.closePort();
+        }
     }
 
 }
