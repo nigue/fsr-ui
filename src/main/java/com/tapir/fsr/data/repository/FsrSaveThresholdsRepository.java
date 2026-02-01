@@ -1,6 +1,7 @@
-package com.tapir.fsr.data;
+package com.tapir.fsr.data.repository;
 
 import com.fazecast.jSerialComm.SerialPort;
+import com.tapir.fsr.data.FsrRequestCommand;
 import com.tapir.fsr.data.exception.SerialCommunicationException;
 import com.tapir.fsr.data.exception.SerialPortOpenException;
 import com.tapir.fsr.data.exception.SerialTimeoutException;
@@ -9,17 +10,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class FsrGetThresholdsRepository {
+public class FsrSaveThresholdsRepository {
+
 
     private static final Logger LOGGER =
-            LoggerFactory.getLogger(FsrGetThresholdsRepository.class);
+            LoggerFactory.getLogger(FsrSaveThresholdsRepository.class);
 
-    public String getAll(SerialPort port) {
+    public String save(SerialPort port) {
 
-        LOGGER.info("Configurando puerto {}", port.getSystemPortName());
+        LOGGER.info("Solicitando guardado de thresholds en placa");
 
         port.setComPortParameters(
-                9600,
+                115200,
                 8,
                 SerialPort.ONE_STOP_BIT,
                 SerialPort.NO_PARITY
@@ -39,48 +41,49 @@ public class FsrGetThresholdsRepository {
         }
 
         try {
-            LOGGER.info("Puerto {} abierto correctamente", port.getSystemPortName());
+            LOGGER.info("Puerto {} abierto", port.getSystemPortName());
 
-            // Teensy USB settle
+            // USB settle (Teensy / CDC)
             Thread.sleep(50);
 
-            LOGGER.info("Enviando comando THRESHOLDS");
-            port.writeBytes(FsrRequestCommand.THRESHOLDS.toBytes(), 1);
+            LOGGER.info("Enviando comando SAVE (s)");
+            port.writeBytes(
+                    FsrRequestCommand.SAVE_THRESHOLDS.toBytes(),
+                    1
+            );
 
+            LOGGER.info("Lectura de resultado al SAVE");
             byte[] buffer = new byte[128];
             int n = port.readBytes(buffer, buffer.length);
 
             if (n <= 0) {
-                LOGGER.error(
-                        "Timeout leyendo thresholds desde {}",
-                        port.getSystemPortName()
-                );
                 throw new SerialTimeoutException(
-                        "Timeout esperando respuesta THRESHOLDS"
+                        "Timeout esperando confirmación SAVE"
                 );
             }
 
             String response = new String(buffer, 0, n).trim();
-            LOGGER.info("Respuesta recibida: [{}]", response);
+            LOGGER.info("Respuesta SAVE recibida: [{}]", response);
+
+            if (!response.startsWith("s ")) {
+                throw new SerialCommunicationException(
+                        "Respuesta inválida al comando SAVE: " + response,
+                        new Throwable()
+                );
+            }
 
             return response;
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LOGGER.error("Hilo interrumpido durante comunicación serial", e);
             throw new SerialCommunicationException(
                     "Comunicación serial interrumpida",
                     e
             );
 
         } catch (Exception e) {
-            LOGGER.error(
-                    "Error inesperado comunicándose con {}",
-                    port.getSystemPortName(),
-                    e
-            );
             throw new SerialCommunicationException(
-                    "Error comunicándose con la placa",
+                    "Error guardando thresholds en placa",
                     e
             );
 
