@@ -1,41 +1,16 @@
-package com.tapir.fsr.controller;
+package com.tapir.fsr.data;
 
 import com.fazecast.jSerialComm.SerialPort;
-import com.tapir.fsr.data.FsrRequestCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Repository;
 
-@RestController
-@RequestMapping("/api/test")
-public class TestController {
+@Repository
+public class FsrGetThresholdsRepository {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TestController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FsrGetThresholdsRepository.class);
 
-    @GetMapping
-    public ResponseEntity<String> test() {
-        LOGGER.info("Test endpoint hit");
-
-        SerialPort[] ports = SerialPort.getCommPorts();
-        LOGGER.info("Cantidad de puertos seriales: {}", ports.length);
-
-        for (SerialPort port : ports) {
-            LOGGER.info(
-                    "{} | SN={} | VID={} PID={}, NAME={}",
-                    port.getSystemPortName(),
-                    port.getSerialNumber(),
-                    port.getVendorID(),
-                    port.getProductID(),
-                    testCommand(port)
-            );
-        }
-        return ResponseEntity.ok("test");
-    }
-
-    private String testCommand(SerialPort port) {
+    public String getAll(SerialPort port) {
         port.setComPortParameters(
                 9600,                       // ← baud correcto
                 8,
@@ -81,5 +56,4 @@ public class TestController {
             port.closePort();
         }
     }
-
 }
